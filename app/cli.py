@@ -3,6 +3,8 @@ from .auth import Auth
 from .credentials import Credentials
 from .password_generator import generate_password
 
+
+
 class CommandLineInterface:
     def __init__(self):
         self.auth = Auth()
@@ -51,9 +53,9 @@ class CommandLineInterface:
         username = input("Enter username: ")
         password = getpass.getpass("Enter password: ")
         if self.auth.register(username, password):
-            print("Registration successful.")
+            print("Registration successful 😊.")
         else:
-            print("Username already exists.")
+            print("Username already exists. 😕")
 
     def login(self):
         username = input("Enter username: ")
@@ -61,14 +63,14 @@ class CommandLineInterface:
         user_id = self.auth.login(username, password)
         if user_id:
             self.user_id = user_id
-            print("Login successful.")
+            print("Login successful. 😊")
         else:
-            print("Invalid credentials.")
+            print("Invalid credentials. 😕")
 
     def add_credential(self):
         website = input("Enter website: ")
         username = input("Enter username: ")
-        password_choice = input("Do you want to generate a strong password? (yes/no): ").strip().lower()
+        password_choice = input("Suggest a strong password? (yes/no): ").strip().lower()
         if password_choice == "yes":
             length = int(input("Enter password length: "))
             password = generate_password(length)
@@ -77,7 +79,7 @@ class CommandLineInterface:
             password = getpass.getpass("Enter password: ")
         category = input("Enter category (optional): ").strip()
         self.credentials.add_credential(self.user_id, website, username, password, category)
-        print("Credential added.")
+        print("Credential added. 😊")
 
     def retrieve_credential(self):
         website = input("Enter website: ")
@@ -88,20 +90,30 @@ class CommandLineInterface:
             print(f"Password: {credential['password']}")
             print(f"Category: {credential['category']}")
         else:
-            print("Credential not found.")
+            print("Credential not found. 😕")
 
     def update_credential(self):
         website = input("Enter website: ")
         username = input("Enter new username: ")
-        password = getpass.getpass("Enter new password: ")
+        password_choice = input("Suggest a strong password? (yes/no): ").strip().lower()
+        if password_choice == "yes":
+            length = int(input("Enter new password length: "))
+            password = generate_password(length)
+            print(f"Generated password: {password}")
+        else:
+            password = getpass.getpass("Enter password: ")
         category = input("Enter new category (optional): ").strip()
         self.credentials.update_credential(self.user_id, website, username, password, category)
-        print("Credential updated.")
+        print("Credential updated.😊")
 
     def delete_credential(self):
         website = input("Enter website: ")
-        self.credentials.delete_credential(self.user_id, website)
-        print("Credential deleted.")
+        confirm = input(f"Are you sure you want to delete the credential for {website}? (yes/no): ").strip().lower()
+        if confirm == "yes":
+            self.credentials.delete_credential(self.user_id, website)
+            print("Deleted. 🚮")
+        else:
+            print("Deletion cancelled.")
 
     def list_credentials(self):
         credentials = self.credentials.list_credentials(self.user_id)
@@ -113,7 +125,7 @@ class CommandLineInterface:
                 print(f"Category: {cred['category']}")
                 print("-" * 20)
         else:
-            print("No credentials found.")
+            print("No credentials found. 😢")
 
     def generate_password(self):
         length = int(input("Enter password length: "))
@@ -122,4 +134,4 @@ class CommandLineInterface:
 
     def logout(self):
         self.user_id = None
-        print("Logged out.")
+        print("Logged out 🔐.")

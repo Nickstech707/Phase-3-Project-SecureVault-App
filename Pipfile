@@ -11,6 +11,7 @@ pipenv = "*"
 werkzeug = "*"
 click = "*"
 tk = "*"
+tabulate = "*"
 
 [dev-packages]
 
