@@ -1,7 +1,10 @@
+#!/usr/bin/env python3
+
 from sqlalchemy import Column, Integer, String, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import relationship
 from cryptography.fernet import Fernet
+
 
 key = Fernet.generate_key()
 with open("secret.key", "wb") as key_file:

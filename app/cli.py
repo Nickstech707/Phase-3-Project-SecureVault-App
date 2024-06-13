@@ -135,3 +135,5 @@ class CommandLineInterface:
     def logout(self):
         self.user_id = None
         print("Logged out 🔐.")
+
+
