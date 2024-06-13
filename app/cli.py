@@ -30,5 +30,67 @@ def login():
     else:
         click.echo('Invalid credentials.')
 
+
+@cli.command()
+def add_credential():
+    if user_id is None:
+        click.echo('Please login first.')
+        return
+    website = input('Enter website: ')
+    username = input('Enter username: ')
+    password = input('Enter password: ')
+    category = input('Enter category (optional): ')
+    credentials.add_credential(user_id, website, username, password, category)
+    click.echo('Credential added.')
+
+@cli.command()
+def retrieve_credential():
+    if user_id is None:
+        click.echo('Please login first.')
+        return
+    website = input('Enter website: ')
+    credential = credentials.get_credential(user_id, website)
+    if credential:
+        click.echo(f'Website: {credential.website}')
+        click.echo(f'Username: {credential.username}')
+        click.echo(f'Password: {credential.password}')
+        click.echo(f'Category: {credential.category}')
+    else:
+        click.echo('Credential not found.')
+
+@cli.command()
+def update_credential():
+    if user_id is None:
+        click.echo('Please login first.')
+        return
+    website = input('Enter website: ')
+    username = input('Enter new username: ')
+    password = input('Enter new password: ')
+    category = input('Enter new category (optional): ')
+    credentials.update_credential(user_id, website, username, password, category)
+    click.echo('Credential updated.')
+
+@cli.command()
+def delete_credential():
+    if user_id is None:
+        click.echo('Please login first.')
+        return
+    website = input('Enter website: ')
+    credentials.delete_credential(user_id, website)
+    click.echo('Credential deleted.')
+
+@cli.command()
+def list_credentials():
+    if user_id is None:
+        click.echo('Please login first.')
+        return
+    creds = credentials.list_credentials(user_id)
+    for cred in creds:
+        click.echo(f'Website: {cred.website}')
+        click.echo(f'Username: {cred.username}')
+        click.echo(f'Password: {cred.password}')
+        click.echo(f'Category: {cred.category}')
+        click.echo('-'*20)
+
 if __name__ == '__main__':
     cli()
