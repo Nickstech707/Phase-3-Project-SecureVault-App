@@ -1,4 +1,4 @@
-echo from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy.orm import Session
 from .database import engine
 from .models import User
