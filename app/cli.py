@@ -92,5 +92,13 @@ def list_credentials():
         click.echo(f'Category: {cred.category}')
         click.echo('-'*20)
 
+
+@cli.command()
+def exit():
+    click.echo('Exiting...')
+    exit()
+
+
+
 if __name__ == '__main__':
     cli()
