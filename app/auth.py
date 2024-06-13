@@ -1,21 +1,26 @@
-from werkzeug.security import generate_password_hash, check_password_hash
-from .models import User
-from . import session
+# app/auth.py
+import sqlite3
+from .models import Database, Encryption
 
 class Auth:
+    def __init__(self):
+        self.db = Database()
+        self.encryption = Encryption()
+
     def register(self, username, password):
-        hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
-        new_user = User(username=username, password=hashed_password)
+        encrypted_password = self.encryption.encrypt(password)
         try:
-            session.add(new_user)
-            session.commit()
+            with self.db.connection:
+                self.db.connection.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, encrypted_password))
             return True
-        except Exception as e:
-            session.rollback()
+        except sqlite3.IntegrityError:
             return False
 
     def login(self, username, password):
-        user = session.query(User).filter_by(username=username).first()
-        if user and check_password_hash(user.password, password):
-            return user.id
+        cursor = self.db.connection.execute("SELECT id, password FROM users WHERE username = ?", (username,))
+        user = cursor.fetchone()
+        if user:
+            decrypted_password = self.encryption.decrypt(user[1])
+            if decrypted_password == password:
+                return user[0]
         return None

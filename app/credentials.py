@@ -1,73 +1,86 @@
-from .models import Credential, Category
-from . import session
-from sqlalchemy.exc import SQLAlchemyError
+# app/credentials.py
+from .models import Database, Encryption
 
 class Credentials:
-    def add_credential(self, user_id, website, username, password, category_name=None):
-        category = None
-        if category_name:
-            category = session.query(Category).filter_by(name=category_name).first()
-            if not category:
-                category = Category(name=category_name)
-                session.add(category)
-                session.commit()
-        new_credential = Credential(user_id=user_id, website=website, username=username, category_id=category.id if category else None)
-        new_credential.decrypted_password = password
-        try:
-            session.add(new_credential)
-            session.commit()
-        except SQLAlchemyError as e:
-            session.rollback()
-            raise e
+    def __init__(self):
+        self.db = Database()
+        self.encryption = Encryption()
+
+    def add_category(self, name):
+        with self.db.connection:
+            self.db.connection.execute("INSERT INTO categories (name) VALUES (?)", (name,))
+        print("Category added.")
+
+    def get_category_id(self, name):
+        cursor = self.db.connection.execute("SELECT id FROM categories WHERE name = ?", (name,))
+        category = cursor.fetchone()
+        if category:
+            return category[0]
+        return None
+
+    def add_credential(self, user_id, website, username, password, category_name):
+        encrypted_password = self.encryption.encrypt(password)
+        category_id = self.get_category_id(category_name)
+        if not category_id:
+            self.add_category(category_name)
+            category_id = self.get_category_id(category_name)
+        with self.db.connection:
+            self.db.connection.execute("""
+            INSERT INTO credentials (user_id, website, username, password, category_id) VALUES (?, ?, ?, ?, ?)
+            """, (user_id, website, username, encrypted_password, category_id))
 
     def get_credential(self, user_id, website):
-        credential = session.query(Credential).filter_by(user_id=user_id, website=website).first()
+        cursor = self.db.connection.execute("""
+        SELECT website, username, password, category_id FROM credentials WHERE user_id = ? AND website = ?
+        """, (user_id, website))
+        credential = cursor.fetchone()
         if credential:
+            category_name = self.get_category_name(credential[3])
             return {
-                'website': credential.website,
-                'username': credential.username,
-                'password': credential.decrypted_password,
-                'category': credential.category.name if credential.category else None
+                'website': credential[0],
+                'username': credential[1],
+                'password': self.encryption.decrypt(credential[2]),
+                'category': category_name
             }
         return None
 
-    def update_credential(self, user_id, website, username, password, category_name=None):
-        credential = session.query(Credential).filter_by(user_id=user_id, website=website).first()
-        if credential:
-            category = None
-            if category_name:
-                category = session.query(Category).filter_by(name=category_name).first()
-                if not category:
-                    category = Category(name=category_name)
-                    session.add(category)
-                    session.commit()
-            credential.username = username
-            credential.decrypted_password = password
-            credential.category_id = category.id if category else None
-            try:
-                session.commit()
-            except SQLAlchemyError as e:
-                session.rollback()
-                raise e
+    def update_credential(self, user_id, website, username, password, category_name):
+        encrypted_password = self.encryption.encrypt(password)
+        category_id = self.get_category_id(category_name)
+        if not category_id:
+            self.add_category(category_name)
+            category_id = self.get_category_id(category_name)
+        with self.db.connection:
+            self.db.connection.execute("""
+            UPDATE credentials SET username = ?, password = ?, category_id = ? WHERE user_id = ? AND website = ?
+            """, (username, encrypted_password, category_id, user_id, website))
 
     def delete_credential(self, user_id, website):
-        credential = session.query(Credential).filter_by(user_id=user_id, website=website).first()
-        if credential:
-            try:
-                session.delete(credential)
-                session.commit()
-            except SQLAlchemyError as e:
-                session.rollback()
-                raise e
+        with self.db.connection:
+            self.db.connection.execute("""
+            DELETE FROM credentials WHERE user_id = ? AND website = ?
+            """, (user_id, website))
 
     def list_credentials(self, user_id):
-        credentials = session.query(Credential).filter_by(user_id=user_id).all()
+        cursor = self.db.connection.execute("""
+        SELECT website, username, password, category_id FROM credentials WHERE user_id = ?
+        """, (user_id,))
+        credentials = cursor.fetchall()
         return [
             {
-                'website': credential.website,
-                'username': credential.username,
-                'password': credential.decrypted_password,
-                'category': credential.category.name if credential.category else None
-            }
-            for credential in credentials
+                'website': credential[0],
+                'username': credential[1],
+                'password': self.encryption.decrypt(credential[2]),
+                'category': self.get_category_name(credential[3])
+            } for credential in credentials
         ]
+
+    def get_category_name(self, category_id):
+        cursor = self.db.connection.execute("SELECT name FROM categories WHERE id = ?", (category_id,))
+        category = cursor.fetchone()
+        if category:
+            return category[0]
+        return None
+
+
+

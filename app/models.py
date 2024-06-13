@@ -1,50 +1,62 @@
-#!/usr/bin/env python3
-
-from sqlalchemy import Column, Integer, String, ForeignKey
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import relationship
+# app/models.py
+import sqlite3
 from cryptography.fernet import Fernet
+import os
 
+class Database:
+    def __init__(self):
+        self.connection = sqlite3.connect('database.db')
+        self.create_tables()
 
-key = Fernet.generate_key()
-with open("secret.key", "wb") as key_file:
-    key_file.write(key)
+    def create_tables(self):
+        with self.connection:
+            self.connection.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY,
+                username TEXT UNIQUE,
+                password TEXT
+            )
+            """)
+            self.connection.execute("""
+            CREATE TABLE IF NOT EXISTS categories (
+                id INTEGER PRIMARY KEY,
+                name TEXT UNIQUE
+            )
+            """)
+            self.connection.execute("""
+            CREATE TABLE IF NOT EXISTS credentials (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER,
+                website TEXT,
+                username TEXT,
+                password TEXT,
+                category_id INTEGER,
+                FOREIGN KEY (user_id) REFERENCES users (id),
+                FOREIGN KEY (category_id) REFERENCES categories (id)
+            )
+            """)
 
-Base = declarative_base()
+class Encryption:
+    def __init__(self):
+        self.key_file = 'encryption_key.key'
+        self.key = self.load_key()
+        self.cipher = Fernet(self.key)
 
+    def generate_key(self):
+        key = Fernet.generate_key()
+        with open(self.key_file, 'wb') as key_file:
+            key_file.write(key)
+        return key
 
-def load_key():
-    return open("secret.key", "rb").read()
+    def load_key(self):
+        if os.path.exists(self.key_file):
+            with open(self.key_file, 'rb') as key_file:
+                return key_file.read()
+        else:
+            return self.generate_key()
 
-key = load_key()
-cipher_suite = Fernet(key)
+    def encrypt(self, data):
+        return self.cipher.encrypt(data.encode()).decode()
 
-class User(Base):
-    __tablename__ = 'user'
-    id = Column(Integer, primary_key=True)
-    username = Column(String(150), unique=True, nullable=False)
-    password = Column(String(256), nullable=False)
-    credentials = relationship('Credential', backref='owner', lazy=True)
-
-class Category(Base):
-    __tablename__ = 'category'
-    id = Column(Integer, primary_key=True)
-    name = Column(String(150), unique=True, nullable=False)
-    credentials = relationship('Credential', backref='category', lazy=True)
-
-class Credential(Base):
-    __tablename__ = 'credential'
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
-    category_id = Column(Integer, ForeignKey('category.id'), nullable=True)
-    website = Column(String(150), nullable=False)
-    username = Column(String(150), nullable=False)
-    password = Column(String(256), nullable=False)
-
-    @property
-    def decrypted_password(self):
-        return cipher_suite.decrypt(self.password.encode()).decode()
-
-    @decrypted_password.setter
-    def decrypted_password(self, plain_password):
-        self.password = cipher_suite.encrypt(plain_password.encode()).decode()
+    def decrypt(self, token):
+        return self.cipher.decrypt(token.encode()).decode()

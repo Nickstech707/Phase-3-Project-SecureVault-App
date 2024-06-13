@@ -5,13 +5,8 @@ name = "pypi"
 
 [packages]
 cryptography = "*"
-sqlalchemy = "*"
-sqlalchemy-utils = "*"
 pipenv = "*"
 werkzeug = "*"
-click = "*"
-tk = "*"
-tabulate = "*"
 
 [dev-packages]
 

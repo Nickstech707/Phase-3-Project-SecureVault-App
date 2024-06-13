@@ -1,12 +1,12 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from .models import Base, User, Credential
+from .models import Base
+from config import Config
 
-engine = create_engine('sqlite:///password_manager.db')
-Session = sessionmaker(bind=engine)
+engine = create_engine(Config.SQLALCHEMY_DATABASE_URI)
 
-def init_db():
+def initialize_database():
     Base.metadata.create_all(engine)
 
-if __name__ == '__main__':
-    init_db()
+if __name__ == "__main__":
+    initialize_database()
+    print("Database initialized.")
