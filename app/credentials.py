@@ -1,42 +1,73 @@
-from sqlalchemy.orm import Session
-from .database import engine
-from .models import Credential
-from cryptography.fernet import Fernet
+from .models import Credential, Category
+from . import session
+from sqlalchemy.exc import SQLAlchemyError
 
 class Credentials:
-    def __init__(self):
-        self.session = Session(bind=engine)
-        self.key = open('secret.key', 'rb').read()
-        self.cipher = Fernet(self.key)
-
-    def add_credential(self, user_id, website, username, password, category=None):
-        encrypted_password = self.cipher.encrypt(password.encode()).decode()
-        new_credential = Credential(user_id=user_id, website=website, username=username, password=encrypted_password, category=category)
-        self.session.add(new_credential)
-        self.session.commit()
+    def add_credential(self, user_id, website, username, password, category_name=None):
+        category = None
+        if category_name:
+            category = session.query(Category).filter_by(name=category_name).first()
+            if not category:
+                category = Category(name=category_name)
+                session.add(category)
+                session.commit()
+        new_credential = Credential(user_id=user_id, website=website, username=username, category_id=category.id if category else None)
+        new_credential.decrypted_password = password
+        try:
+            session.add(new_credential)
+            session.commit()
+        except SQLAlchemyError as e:
+            session.rollback()
+            raise e
 
     def get_credential(self, user_id, website):
-        credential = self.session.query(Credential).filter_by(user_id=user_id, website=website).first()
+        credential = session.query(Credential).filter_by(user_id=user_id, website=website).first()
         if credential:
-            credential.password = self.cipher.decrypt(credential.password.encode()).decode()
-        return credential
+            return {
+                'website': credential.website,
+                'username': credential.username,
+                'password': credential.decrypted_password,
+                'category': credential.category.name if credential.category else None
+            }
+        return None
 
-    def update_credential(self, user_id, website, username, password, category):
-        credential = self.get_credential(user_id, website)
+    def update_credential(self, user_id, website, username, password, category_name=None):
+        credential = session.query(Credential).filter_by(user_id=user_id, website=website).first()
         if credential:
+            category = None
+            if category_name:
+                category = session.query(Category).filter_by(name=category_name).first()
+                if not category:
+                    category = Category(name=category_name)
+                    session.add(category)
+                    session.commit()
             credential.username = username
-            credential.password = self.cipher.encrypt(password.encode()).decode()
-            credential.category = category
-            self.session.commit()
+            credential.decrypted_password = password
+            credential.category_id = category.id if category else None
+            try:
+                session.commit()
+            except SQLAlchemyError as e:
+                session.rollback()
+                raise e
 
     def delete_credential(self, user_id, website):
-        credential = self.get_credential(user_id, website)
+        credential = session.query(Credential).filter_by(user_id=user_id, website=website).first()
         if credential:
-            self.session.delete(credential)
-            self.session.commit()
+            try:
+                session.delete(credential)
+                session.commit()
+            except SQLAlchemyError as e:
+                session.rollback()
+                raise e
 
     def list_credentials(self, user_id):
-        creds = self.session.query(Credential).filter_by(user_id=user_id).all()
-        for cred in creds:
-            cred.password = self.cipher.decrypt(cred.password.encode()).decode()
-        return creds
+        credentials = session.query(Credential).filter_by(user_id=user_id).all()
+        return [
+            {
+                'website': credential.website,
+                'username': credential.username,
+                'password': credential.decrypted_password,
+                'category': credential.category.name if credential.category else None
+            }
+            for credential in credentials
+        ]

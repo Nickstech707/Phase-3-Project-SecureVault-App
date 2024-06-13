@@ -1,104 +1,125 @@
-import click
+import getpass
 from .auth import Auth
 from .credentials import Credentials
+from .password_generator import generate_password
 
-auth = Auth()
-credentials = Credentials()
-user_id = None
+class CommandLineInterface:
+    def __init__(self):
+        self.auth = Auth()
+        self.credentials = Credentials()
+        self.user_id = None
 
-@click.group()
-def cli():
-    pass
+    def run(self):
+        while True:
+            if self.user_id is None:
+                print("1. Register")
+                print("2. Login")
+                print("3. Exit")
+                choice = input("Select an option: ")
+                if choice == "1":
+                    self.register()
+                elif choice == "2":
+                    self.login()
+                elif choice == "3":
+                    print("Exiting the application.")
+                    break
+            else:
+                print("1. Add Credential")
+                print("2. Retrieve Credential")
+                print("3. Update Credential")
+                print("4. Delete Credential")
+                print("5. List All Credentials")
+                print("6. Generate Password")
+                print("7. Logout")
+                choice = input("Select an option: ")
+                if choice == "1":
+                    self.add_credential()
+                elif choice == "2":
+                    self.retrieve_credential()
+                elif choice == "3":
+                    self.update_credential()
+                elif choice == "4":
+                    self.delete_credential()
+                elif choice == "5":
+                    self.list_credentials()
+                elif choice == "6":
+                    self.generate_password()
+                elif choice == "7":
+                    self.logout()
 
-@cli.command()
-def register():
-    username = input('Enter username: ')
-    password = input('Enter password: ')
-    if auth.register(username, password):
-        click.echo('Registration successful.')
-    else:
-        click.echo('Username already exists.')
+    def register(self):
+        username = input("Enter username: ")
+        password = getpass.getpass("Enter password: ")
+        if self.auth.register(username, password):
+            print("Registration successful.")
+        else:
+            print("Username already exists.")
 
-@cli.command()
-def login():
-    global user_id
-    username = input('Enter username: ')
-    password = input('Enter password: ')
-    user_id = auth.login(username, password)
-    if user_id:
-        click.echo('Login successful.')
-    else:
-        click.echo('Invalid credentials.')
+    def login(self):
+        username = input("Enter username: ")
+        password = getpass.getpass("Enter password: ")
+        user_id = self.auth.login(username, password)
+        if user_id:
+            self.user_id = user_id
+            print("Login successful.")
+        else:
+            print("Invalid credentials.")
 
+    def add_credential(self):
+        website = input("Enter website: ")
+        username = input("Enter username: ")
+        password_choice = input("Do you want to generate a strong password? (yes/no): ").strip().lower()
+        if password_choice == "yes":
+            length = int(input("Enter password length: "))
+            password = generate_password(length)
+            print(f"Generated password: {password}")
+        else:
+            password = getpass.getpass("Enter password: ")
+        category = input("Enter category (optional): ").strip()
+        self.credentials.add_credential(self.user_id, website, username, password, category)
+        print("Credential added.")
 
-@cli.command()
-def add_credential():
-    if user_id is None:
-        click.echo('Please login first.')
-        return
-    website = input('Enter website: ')
-    username = input('Enter username: ')
-    password = input('Enter password: ')
-    category = input('Enter category (optional): ')
-    credentials.add_credential(user_id, website, username, password, category)
-    click.echo('Credential added.')
+    def retrieve_credential(self):
+        website = input("Enter website: ")
+        credential = self.credentials.get_credential(self.user_id, website)
+        if credential:
+            print(f"Website: {credential['website']}")
+            print(f"Username: {credential['username']}")
+            print(f"Password: {credential['password']}")
+            print(f"Category: {credential['category']}")
+        else:
+            print("Credential not found.")
 
-@cli.command()
-def retrieve_credential():
-    if user_id is None:
-        click.echo('Please login first.')
-        return
-    website = input('Enter website: ')
-    credential = credentials.get_credential(user_id, website)
-    if credential:
-        click.echo(f'Website: {credential.website}')
-        click.echo(f'Username: {credential.username}')
-        click.echo(f'Password: {credential.password}')
-        click.echo(f'Category: {credential.category}')
-    else:
-        click.echo('Credential not found.')
+    def update_credential(self):
+        website = input("Enter website: ")
+        username = input("Enter new username: ")
+        password = getpass.getpass("Enter new password: ")
+        category = input("Enter new category (optional): ").strip()
+        self.credentials.update_credential(self.user_id, website, username, password, category)
+        print("Credential updated.")
 
-@cli.command()
-def update_credential():
-    if user_id is None:
-        click.echo('Please login first.')
-        return
-    website = input('Enter website: ')
-    username = input('Enter new username: ')
-    password = input('Enter new password: ')
-    category = input('Enter new category (optional): ')
-    credentials.update_credential(user_id, website, username, password, category)
-    click.echo('Credential updated.')
+    def delete_credential(self):
+        website = input("Enter website: ")
+        self.credentials.delete_credential(self.user_id, website)
+        print("Credential deleted.")
 
-@cli.command()
-def delete_credential():
-    if user_id is None:
-        click.echo('Please login first.')
-        return
-    website = input('Enter website: ')
-    credentials.delete_credential(user_id, website)
-    click.echo('Credential deleted.')
+    def list_credentials(self):
+        credentials = self.credentials.list_credentials(self.user_id)
+        if credentials:
+            for cred in credentials:
+                print(f"Website: {cred['website']}")
+                print(f"Username: {cred['username']}")
+                print(f"Password: {cred['password']}")
+                print(f"Category: {cred['category']}")
+                print("-" * 20)
+        else:
+            print("No credentials found.")
 
-@cli.command()
-def list_credentials():
-    if user_id is None:
-        click.echo('Please login first.')
-        return
-    creds = credentials.list_credentials(user_id)
-    for cred in creds:
-        click.echo(f'Website: {cred.website}')
-        click.echo(f'Username: {cred.username}')
-        click.echo(f'Password: {cred.password}')
-        click.echo(f'Category: {cred.category}')
-        click.echo('-'*20)
+    def generate_password(self):
+        length = int(input("Enter password length: "))
+        password = generate_password(length)
+        print(f"Generated password: {password}")
 
-
-@cli.command()
-def exit():
-    click.echo('Exiting...')
-    exit()
-
-
-
-if __name__ == '__main__':
-    cli()
+    def logout(self):
+        self.user_id = None
+        print("Logged out.")
